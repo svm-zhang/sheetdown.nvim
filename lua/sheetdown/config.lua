@@ -1,11 +1,11 @@
 local M = {}
 
 local defaults = {
-  default_alignment = "left",
-  default_rows = {
-    mode = "head",
-    count = 5,
-  },
+	default_alignment = "left",
+	default_rows = {
+		mode = "head",
+		count = 5,
+	},
 }
 
 local values = vim.deepcopy(defaults)
@@ -16,7 +16,7 @@ local values = vim.deepcopy(defaults)
 ---config table in place.
 ---@return table
 function M.get()
-  return vim.deepcopy(values)
+	return vim.deepcopy(values)
 end
 
 ---Merge user configuration with defaults.
@@ -26,9 +26,9 @@ end
 ---@param opts? table
 ---@return table
 function M.setup(opts)
-  opts = opts or {}
-  values = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
-  return M.get()
+	opts = opts or {}
+	values = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
+	return M.get()
 end
 
 return M

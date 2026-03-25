@@ -3,9 +3,9 @@ local root = vim.fn.fnamemodify(source, ":p:h:h")
 
 vim.opt.runtimepath:prepend(root)
 package.path = table.concat({
-  root .. "/lua/?.lua",
-  root .. "/lua/?/init.lua",
-  root .. "/tests/?.lua",
-  root .. "/tests/?/init.lua",
-  package.path,
+	root .. "/lua/?.lua",
+	root .. "/lua/?/init.lua",
+	root .. "/tests/?.lua",
+	root .. "/tests/?/init.lua",
+	package.path,
 }, ";")

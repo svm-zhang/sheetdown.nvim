@@ -7,12 +7,12 @@ local M = {}
 ---@param opts? table
 ---@return table
 function M.setup(opts)
-  return config.setup(opts)
+	return config.setup(opts)
 end
 
 ---Run the public table-generation workflow.
 function M.table_from_file()
-  commands.run()
+	commands.run()
 end
 
 return M
