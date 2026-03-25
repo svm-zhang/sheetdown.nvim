@@ -1,5 +1,16 @@
 local M = {}
 
+local root
+
+function M.repo_root()
+	if not root then
+		local source = debug.getinfo(1, "S").source:sub(2)
+		root = vim.fn.fnamemodify(source, ":p:h:h")
+	end
+
+	return root
+end
+
 function M.eq(actual, expected, message)
 	if not vim.deep_equal(actual, expected) then
 		error(
@@ -44,6 +55,16 @@ function M.expect_error(fn, expected)
 			)
 		)
 	end
+end
+
+function M.find_line(lines, needle)
+	for index, line in ipairs(lines) do
+		if line:find(needle, 1, true) then
+			return index, line
+		end
+	end
+
+	error(("expected to find line containing %q"):format(needle))
 end
 
 return M

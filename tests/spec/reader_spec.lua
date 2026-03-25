@@ -1,7 +1,7 @@
 local helpers = require("tests.helpers")
 local reader = require("sheetdown.reader")
 
-local root = "/Users/simo/work/bio/code/sheetdown"
+local root = helpers.repo_root()
 
 return {
 	{

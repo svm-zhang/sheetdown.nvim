@@ -1,7 +1,7 @@
 local helpers = require("tests.helpers")
 local path = require("sheetdown.path")
 
-local root = "/Users/simo/work/bio/code/sheetdown"
+local root = helpers.repo_root()
 
 return {
 	{

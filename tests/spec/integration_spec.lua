@@ -1,7 +1,7 @@
 local commands = require("sheetdown.commands")
 local helpers = require("tests.helpers")
 
-local root = "/Users/simo/work/bio/code/sheetdown"
+local root = helpers.repo_root()
 
 local function set_visual_marks(bufnr, row, text, needle)
 	local start_col = assert(text:find(needle, 1, true))
@@ -112,22 +112,18 @@ return {
 				bufnr,
 				root .. "/fixtures/manual/integration-sample-inline.md"
 			)
-			vim.api.nvim_buf_set_lines(
-				bufnr,
-				0,
-				-1,
-				false,
-				vim.fn.readfile(root .. "/fixtures/manual/sample.md")
-			)
+			local lines = vim.fn.readfile(root .. "/fixtures/manual/sample.md")
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
-			local line = vim.api.nvim_buf_get_lines(bufnr, 31, 32, false)[1]
-			set_visual_marks(bufnr, 32, line, "../data/ambiguous.case_2.csv")
+			local row, line =
+				helpers.find_line(lines, "../data/ambiguous.case_2.csv")
+			set_visual_marks(bufnr, row, line, "../data/ambiguous.case_2.csv")
 
 			with_mock_ui({ "left", "head" }, { "", "2" }, function()
 				commands.run()
 			end)
 
-			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 29, 40, false), {
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 24, 38, false), {
 				"## Ambiguous case 2",
 				"",
 				"This reveals the current implementation problem: `../data/ambiguous.case_2.csv`",
@@ -137,8 +133,11 @@ return {
 				"| Alice 30  | Paris  |",
 				"| Bob 41,   | Berlin |",
 				"",
-				"## sheetdown.test.csv",
+				"## Malformed body",
 				"",
+				"```",
+				"../data/malformed_body.tsv",
+				"```",
 			})
 		end,
 	},
