@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / nvim ${{ matrix.nvim }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            nvim: v0.9.5
+          - os: ubuntu-latest
+            nvim: stable
+          - os: macos-latest
+            nvim: stable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim }}
+
+      - name: Show version
+        run: nvim --version
+
+      - name: Run test suite
+        run: nvim --headless -u tests/minimal_init.lua -i NONE -c "lua require('tests.run')" -c "qall!"
