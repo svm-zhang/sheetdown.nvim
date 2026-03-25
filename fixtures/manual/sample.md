@@ -1,4 +1,4 @@
-# Sheetdown Manual Test
+# Sheetdown Manual Sample Test
 
 Plain text path:
 ../data/people.csv
@@ -21,20 +21,14 @@ Fenced code block path:
 `../data/ambiguous.csv`
 
 
+
+## Ambiguous case 2
+
+This reveals the current implementation problem: `../data/ambiguous.case_2.csv`
+
 ## Malformed body
 
 ```
 ../data/malformed_body.tsv
 ```
 
-## Ambiguous case 2
-
-This reveals the current implementation problem: `../data/ambiguous.case_2.csv`
-
-## sheetdown.test.csv
-
-This shows the problem of column selection UI:
-
-```
-../data/sheetdown.test.tsv
-```
