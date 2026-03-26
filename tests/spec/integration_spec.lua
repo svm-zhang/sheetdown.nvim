@@ -3,6 +3,18 @@ local helpers = require("tests.helpers")
 
 local root = helpers.repo_root()
 
+local function load_integration_buffer(name)
+	local path = root .. "/fixtures/integration/" .. name
+	local lines = vim.fn.readfile(path)
+	local bufnr = vim.api.nvim_create_buf(false, true)
+
+	vim.api.nvim_set_current_buf(bufnr)
+	vim.api.nvim_buf_set_name(bufnr, path)
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+
+	return bufnr, lines
+end
+
 local function set_visual_marks(bufnr, row, text, needle)
 	local start_col = assert(text:find(needle, 1, true))
 	local finish_col = start_col + #needle - 2
@@ -72,19 +84,8 @@ return {
 	{
 		name = "commands.run inserts a table below a plain-text paragraph",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-plain.md"
-			)
-
-			local line = "The data lives at ../data/people.csv."
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-				line,
-				"",
-				"Next paragraph.",
-			})
+			local bufnr, lines = load_integration_buffer("plain.md")
+			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/people.csv")
 
 			with_mock_ui({ "left", "head" }, { "name,city", "2" }, function()
@@ -104,16 +105,30 @@ return {
 		end,
 	},
 	{
-		name = "commands.run inserts below for the sample inline path between fenced blocks",
+		name = "commands.run accepts CSV data from a file with a nonstandard extension",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-sample-inline.md"
-			)
-			local lines = vim.fn.readfile(root .. "/fixtures/manual/sample.md")
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+			local bufnr, lines = load_integration_buffer("nonstandard_extension.md")
+			local line = lines[1]
+			set_visual_marks(bufnr, 1, line, "../data/people.data")
+
+			with_mock_ui({ "left", "head" }, { "name,city", "1" }, function()
+				commands.run()
+			end)
+
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
+				"../data/people.data",
+				"",
+				"| name  | city  |",
+				"| :---- | :---- |",
+				"| Alice | Paris |",
+			})
+		end,
+	},
+	{
+		name = "commands.run inserts below for an inline path between fenced blocks",
+		run = function()
+			local bufnr, lines =
+				load_integration_buffer("inline_between_fences.md")
 
 			local row, line =
 				helpers.find_line(lines, "../data/ambiguous.case_2.csv")
@@ -123,7 +138,7 @@ return {
 				commands.run()
 			end)
 
-			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 24, 38, false), {
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 6, 20, false), {
 				"## Ambiguous case 2",
 				"",
 				"This reveals the current implementation problem: `../data/ambiguous.case_2.csv`",
@@ -133,9 +148,9 @@ return {
 				"| Alice 30  | Paris  |",
 				"| Bob 41,   | Berlin |",
 				"",
-				"## Malformed body",
+				"## Lower fenced block",
 				"",
-				"```",
+				"```text",
 				"../data/malformed_body.tsv",
 				"```",
 			})
@@ -144,22 +159,9 @@ return {
 	{
 		name = "commands.run replaces a fenced code block with a table",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-fenced.md"
-			)
-
-			local line = "../data/people.tsv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-				"```text",
-				line,
-				"```",
-				"",
-				"After block.",
-			})
-			set_visual_marks(bufnr, 2, line, "../data/people.tsv")
+			local bufnr, lines = load_integration_buffer("fenced.md")
+			local row, line = helpers.find_line(lines, "../data/people.tsv")
+			set_visual_marks(bufnr, row, line, "../data/people.tsv")
 
 			with_mock_ui({ "center", "head" }, { "", "1" }, function()
 				commands.run()
@@ -175,28 +177,32 @@ return {
 		end,
 	},
 	{
+		name = "commands.run adds a leading blank line when replacing a fenced block below a heading",
+		run = function()
+			local bufnr, lines = load_integration_buffer("fenced_under_heading.md")
+			local row, line = helpers.find_line(lines, "../data/people.tsv")
+			set_visual_marks(bufnr, row, line, "../data/people.tsv")
+
+			with_mock_ui({ "center", "head" }, { "", "1" }, function()
+				commands.run()
+			end)
+
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
+				"## Some header",
+				"",
+				"| name  | age | city  |",
+				"| :---: | :-: | :---: |",
+				"| Alice | 30  | Paris |",
+			})
+		end,
+	},
+	{
 		name = "commands.run inserts below for a plain-text path between fenced blocks",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-plain-between-fences.md"
-			)
-
-			local line = "Reference: ../data/people.csv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-				"```text",
-				"../data/people.tsv",
-				"```",
-				"",
-				line,
-				"",
-				"```text",
-				"../data/quoted.csv",
-				"```",
-			})
-			set_visual_marks(bufnr, 5, line, "../data/people.csv")
+			local bufnr, lines =
+				load_integration_buffer("plain_between_fences.md")
+			local row, line = helpers.find_line(lines, "../data/people.csv")
+			set_visual_marks(bufnr, row, line, "../data/people.csv")
 
 			with_mock_ui({ "left", "head" }, { "name,city", "1" }, function()
 				commands.run()
@@ -222,24 +228,9 @@ return {
 	{
 		name = "commands.run replaces only the selected fenced block in a mixed layout",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-mixed-fenced.md"
-			)
-
-			local line = "../data/people.tsv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-				"Top `../data/quoted.csv`",
-				"",
-				"```text",
-				line,
-				"```",
-				"",
-				"Bottom ../data/people.csv",
-			})
-			set_visual_marks(bufnr, 4, line, "../data/people.tsv")
+			local bufnr, lines = load_integration_buffer("mixed_fenced.md")
+			local row, line = helpers.find_line(lines, "../data/people.tsv")
+			set_visual_marks(bufnr, row, line, "../data/people.tsv")
 
 			with_mock_ui({ "center", "head" }, { "", "1" }, function()
 				commands.run()
@@ -259,15 +250,8 @@ return {
 	{
 		name = "commands.run fails immediately on an invalid column expression",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-invalid-column.md"
-			)
-
-			local line = "../data/people.csv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { line })
+			local bufnr, lines = load_integration_buffer("invalid_column.md")
+			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/people.csv")
 
 			local tracker = {
@@ -297,15 +281,9 @@ return {
 	{
 		name = "commands.run rejects ambiguous headers before prompting",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-bad-header.md"
-			)
-
-			local line = "../data/ambiguous.csv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { line })
+			local bufnr, lines =
+				load_integration_buffer("ambiguous_header.md")
+			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/ambiguous.csv")
 
 			local tracker = {
@@ -331,15 +309,8 @@ return {
 	{
 		name = "commands.run rejects malformed body rows under a valid header schema",
 		run = function()
-			local bufnr = vim.api.nvim_create_buf(false, true)
-			vim.api.nvim_set_current_buf(bufnr)
-			vim.api.nvim_buf_set_name(
-				bufnr,
-				root .. "/fixtures/manual/integration-bad-body.md"
-			)
-
-			local line = "../data/malformed_body.tsv"
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { line })
+			local bufnr, lines = load_integration_buffer("malformed_body.md")
+			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/malformed_body.tsv")
 
 			local notices = with_mock_notify(function()

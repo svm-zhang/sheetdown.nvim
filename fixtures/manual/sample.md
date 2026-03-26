@@ -32,3 +32,11 @@ This reveals the current implementation problem: `../data/ambiguous.case_2.csv`
 ../data/malformed_body.tsv
 ```
 
+## Nonstandard extension
+
+`../data/people.data`
+
+## Heading-adjacent fenced block
+```text
+../data/people.tsv
+```
