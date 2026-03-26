@@ -8,9 +8,9 @@ changes to your Neovim config.
 Use `fixtures/manual/sample.md` for quick manual testing.
 
 That file is important because it already contains relative fixture paths such
-as `../data/people.csv` and `../data/people.tsv`. Open the file in place from
-the repository checkout. If you copy it elsewhere, those relative paths will no
-longer resolve correctly.
+as `../data/people.csv`, `../data/people.tsv`, and `../data/people.data`. Open
+the file in place from the repository checkout. If you copy it elsewhere, those
+relative paths will no longer resolve correctly.
 
 ## One-off manual test session
 
@@ -85,6 +85,16 @@ repository checkout.
 5. Enter `1`.
 6. Confirm that the entire fenced block is replaced with a Markdown table.
 
+### Heading-adjacent fenced block
+
+1. Move to the `Heading-adjacent fenced block` section.
+2. Select the `../data/people.tsv` path inside that fenced block.
+3. Run `:TableFromFile`.
+4. Choose `head`.
+5. Enter `1`.
+6. Confirm that the fenced block is replaced and that a blank line is inserted
+   between the section heading and the replacement table.
+
 ### Ambiguous header rejection
 
 1. Move to the `` `../data/ambiguous.csv` `` line.
@@ -110,6 +120,16 @@ repository checkout.
 4. At the first prompt, enter `missing_column`.
 5. Confirm that the command fails immediately after the first prompt instead of
    continuing to alignment or row prompts.
+
+### Nonstandard extension
+
+1. Move to the `` `../data/people.data` `` line.
+2. Select the path.
+3. Run `:TableFromFile`.
+4. Choose `head`.
+5. Enter `1`.
+6. Confirm that the command succeeds even though the file does not end in
+   `.csv` or `.tsv`.
 
 ## Optional temporary mapping
 

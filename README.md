@@ -1,14 +1,16 @@
 # sheetdown.nvim
 
-`sheetdown.nvim` turns a visually selected local CSV or TSV path in a Markdown
-buffer into a Markdown table.
+`sheetdown.nvim` turns a visually selected local file containing CSV or TSV
+data in a Markdown buffer into a Markdown table.
 
-This plugin is still an ongoing effort. `v0.1.0` is the first narrow release,
-focused on a simple Markdown-authoring workflow inside Neovim.
+This plugin is still an ongoing effort.
 
 ## Features
 
-- Turn a visually selected local `.csv` or `.tsv` path into a Markdown table
+- Turn a visually selected local file containing CSV or TSV data into a
+  Markdown table
+- Detect CSV or TSV data from file content instead of requiring a specific
+  filename extension
 - Insert below the containing paragraph for plain text and inline code paths
 - Replace the entire fenced code block for fenced path selections
 - Select columns by name or index, with input order controlling output order
@@ -32,7 +34,7 @@ focused on a simple Markdown-authoring workflow inside Neovim.
 
 ## Usage
 
-The `v0.1.0` workflow is intentionally small:
+The `sheetdown.nvim` workflow is:
 
 1. Write a local path in Markdown
 2. Visually select the path
