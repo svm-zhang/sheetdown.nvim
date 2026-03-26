@@ -163,7 +163,38 @@ return {
 		end,
 	},
 	{
-		name = "selection.apply replaces the full target range",
+		name = "selection.apply collapses extra blank lines around an inserted table",
+		run = function()
+			local bufnr = create_buffer({
+				"Path: ../data/people.csv",
+				"",
+				"",
+				"Next paragraph.",
+			})
+
+			selection.apply({
+				bufnr = bufnr,
+				target = {
+					kind = "insert_after_row",
+					row = 1,
+				},
+			}, {
+				"| name |",
+				"| :--- |",
+			})
+
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
+				"Path: ../data/people.csv",
+				"",
+				"| name |",
+				"| :--- |",
+				"",
+				"Next paragraph.",
+			})
+		end,
+	},
+	{
+		name = "selection.apply replaces the full target range with block spacing",
 		run = function()
 			local bufnr = create_buffer({
 				"Before",
@@ -187,9 +218,41 @@ return {
 
 			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
 				"Before",
+				"",
 				"| name |",
 				"| :--- |",
+				"",
 				"After",
+			})
+		end,
+	},
+	{
+		name = "selection.apply adds a leading blank line when replacing below nonblank content",
+		run = function()
+			local bufnr = create_buffer({
+				"## Some header",
+				"```text",
+				"../data/people.tsv",
+				"```",
+			})
+
+			selection.apply({
+				bufnr = bufnr,
+				target = {
+					kind = "replace_range",
+					start_row = 2,
+					end_row = 4,
+				},
+			}, {
+				"| name |",
+				"| :--- |",
+			})
+
+			helpers.eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
+				"## Some header",
+				"",
+				"| name |",
+				"| :--- |",
 			})
 		end,
 	},

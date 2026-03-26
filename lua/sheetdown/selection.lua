@@ -16,6 +16,10 @@ local function clamp_col(bufnr, row, col)
 	return math.max(0, math.min(col, #line))
 end
 
+local function is_blank(line)
+	return line == nil or line:match("^%s*$") ~= nil
+end
+
 -- Normalize visual mark order so every downstream helper can assume
 -- start <= finish, even when the user selected backwards.
 -- a and b are (row, col) tuples.
@@ -207,6 +211,14 @@ local function build_target(lines, range)
 	}
 end
 
+local function next_nonblank_row(lines, row)
+	local current = row + 1
+	while current <= #lines and is_blank(lines[current]) do
+		current = current + 1
+	end
+	return current
+end
+
 ---Extract the selected path and decide how the table should be applied.
 ---
 ---Target rules in v0.1.0:
@@ -251,25 +263,47 @@ end
 function M.apply(selection_info, table_lines)
 	local bufnr = selection_info.bufnr
 	local target = selection_info.target
+	local all_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
 	if target.kind == "replace_range" then
+		local replacement = vim.deepcopy(table_lines)
+		local previous_line = all_lines[target.start_row - 1]
+		local next_line = all_lines[target.end_row + 1]
+		local leading_blank = previous_line and not is_blank(previous_line)
+
+		if leading_blank then
+			table.insert(replacement, 1, "")
+		end
+
+		if next_line and not is_blank(next_line) then
+			replacement[#replacement + 1] = ""
+		end
+
 		vim.api.nvim_buf_set_lines(
 			bufnr,
 			target.start_row - 1,
 			target.end_row,
 			false,
-			table_lines
+			replacement
 		)
-		vim.api.nvim_win_set_cursor(0, { target.start_row, 0 })
+		vim.api.nvim_win_set_cursor(
+			0,
+			{ target.start_row + (leading_blank and 1 or 0), 0 }
+		)
 		return
 	end
 
+	local next_content_row = next_nonblank_row(all_lines, target.row)
 	local insert_lines = { "" }
 	vim.list_extend(insert_lines, table_lines)
+	if next_content_row <= #all_lines then
+		insert_lines[#insert_lines + 1] = ""
+	end
+
 	vim.api.nvim_buf_set_lines(
 		bufnr,
 		target.row,
-		target.row,
+		next_content_row - 1,
 		false,
 		insert_lines
 	)

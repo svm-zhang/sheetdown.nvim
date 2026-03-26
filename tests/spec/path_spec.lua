@@ -15,11 +15,10 @@ return {
 
 			local resolved = assert(path.resolve("../data/people.csv", bufnr))
 			helpers.eq(resolved.absolute, root .. "/fixtures/data/people.csv")
-			helpers.eq(resolved.extension, "csv")
 		end,
 	},
 	{
-		name = "path.resolve rejects unsupported extensions",
+		name = "path.resolve accepts readable files with nonstandard extensions",
 		run = function()
 			local bufnr = vim.api.nvim_create_buf(false, true)
 			vim.api.nvim_buf_set_name(
@@ -27,9 +26,8 @@ return {
 				root .. "/fixtures/manual/path-spec-two.md"
 			)
 
-			local resolved, err = path.resolve("../manual/sample.md", bufnr)
-			helpers.eq(resolved, nil)
-			helpers.match(err, "Unsupported file type")
+			local resolved = assert(path.resolve("../data/people.data", bufnr))
+			helpers.eq(resolved.absolute, root .. "/fixtures/data/people.data")
 		end,
 	},
 }

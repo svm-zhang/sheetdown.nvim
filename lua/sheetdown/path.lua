@@ -11,7 +11,10 @@ end
 --- - trim the selected text
 --- - expand `~` and other Vim path expressions
 --- - resolve relative paths from the current buffer's directory
---- - reject anything that is not a readable `.csv` or `.tsv` file
+--- - require the path to point to a readable local file
+---
+---The path layer no longer treats the filename extension as authoritative.
+---Whether the file is usable as CSV or TSV is decided later from its content.
 ---@param raw_path string
 ---@param bufnr integer
 ---@return table|nil, string|nil
@@ -41,21 +44,9 @@ function M.resolve(raw_path, bufnr)
 		return nil, ("File not found or unreadable: %s"):format(absolute)
 	end
 
-	-- Allow for other suffix as long as the data table itself is defined as
-	-- a CSV or TSV in the future. Extension itself should not be authoritative.
-	local extension = absolute:match("%.([^.]+)$")
-	extension = extension and extension:lower() or ""
-	if extension ~= "csv" and extension ~= "tsv" then
-		return nil,
-			("Unsupported file type for %s. Use a .csv or .tsv file."):format(
-				absolute
-			)
-	end
-
 	return {
 		raw = raw_path,
 		absolute = absolute,
-		extension = extension,
 		base_dir = base_dir,
 	}
 end
