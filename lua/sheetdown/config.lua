@@ -6,6 +6,9 @@ local defaults = {
 		mode = "head",
 		count = 5,
 	},
+	ui = {
+		backend = "auto",
+	},
 }
 
 local values = vim.deepcopy(defaults)
