@@ -191,4 +191,4 @@ Supported options:
 - `ui.backend`:
   - `"auto"`: use `snacks.nvim` when available, otherwise fall back to `vim.ui.*`
   - `"snacks"`: require the enhanced backend
-  - `"vim_ui"`: force the original prompt flow
+  - `"fallback"`: force the original `vim.ui.*` prompt flow

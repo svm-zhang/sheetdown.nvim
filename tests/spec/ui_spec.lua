@@ -455,6 +455,37 @@ return {
 		end,
 	},
 	{
+		name = "ui.prompt accepts the explicit fallback backend name",
+		run = function()
+			unload("sheetdown.ui")
+
+			with_module("sheetdown.ui_fallback", {
+				prompt = function(headers, config, on_done)
+					helpers.eq(headers, { "name" })
+					helpers.eq(config.ui.backend, "fallback")
+					on_done({ ok = "fallback" }, nil)
+				end,
+			}, function()
+				local ui = require("sheetdown.ui")
+				local called = false
+
+				ui.prompt(
+					{ "name" },
+					{ ui = { backend = "fallback" } },
+					function(result, err)
+						called = true
+						helpers.eq(err, nil)
+						helpers.eq(result, { ok = "fallback" })
+					end
+				)
+
+				helpers.ok(called)
+			end)
+
+			unload("sheetdown.ui")
+		end,
+	},
+	{
 		name = "ui.prompt routes to the snacks backend when snacks is available in auto mode",
 		run = function()
 			unload("sheetdown.ui")

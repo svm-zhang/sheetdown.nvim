@@ -5,8 +5,8 @@ local M = {}
 local function resolve_backend(config)
 	local requested = ((config.ui or {}).backend) or "auto"
 
-	if requested == "vim_ui" then
-		return "vim_ui"
+	if requested == "fallback" or requested == "vim_ui" then
+		return "fallback"
 	end
 
 	local snacks_available = pcall(require, "snacks")
@@ -19,7 +19,7 @@ local function resolve_backend(config)
 	end
 
 	if requested == "auto" then
-		return snacks_available and "snacks" or "vim_ui"
+		return snacks_available and "snacks" or "fallback"
 	end
 
 	return nil, ("Unknown UI backend: %s"):format(requested)
