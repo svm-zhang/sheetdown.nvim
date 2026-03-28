@@ -46,6 +46,28 @@ If you already installed `sheetdown.nvim` through your plugin manager, you can
 skip the `runtimepath` and `:runtime` steps and go straight to the test cases
 below.
 
+### Optional enhanced UI
+
+If your Neovim config already installs `snacks.nvim` with its `picker` and
+`input` modules enabled, `sheetdown.nvim` will use the richer `v0.2.0` UI.
+
+If not, the plugin falls back to the previous `vim.ui.*` prompt flow.
+
+That means the same manual test cases below are still valid in both modes. The
+difference is only the prompt UI:
+
+- enhanced mode: one picker-based screen
+- fallback mode: the original sequence of input/select prompts
+
+In enhanced mode, the picker opens with search focused and a placeholder.
+Type immediately to filter columns, use `<C-j>` as the primary way to move
+into the list, use `<Down>` as a secondary choice, and use `i` to return to
+search.
+
+Columns start unchecked in enhanced mode. The order you toggle them on becomes
+the output column order. `c` selects all columns in source order, and `u`
+clears the full selection.
+
 ## Test cases
 
 All test cases below assume you opened `fixtures/manual/sample.md` from this
@@ -61,19 +83,29 @@ repository checkout.
    :TableFromFile
    ```
 
-4. Accept or edit the column prompt.
-5. Choose an alignment.
-6. Choose `head`.
-7. Enter `2`.
-8. Confirm that a Markdown table is inserted below that paragraph.
+4. If the enhanced UI is active:
+   - type to filter if helpful
+   - use `<C-j>` to move into the list
+   - use `<Tab>` on `name`, then on `city`, so the output order is `name, city`
+   - use `a` until alignment shows `left`
+   - use `d`, enter `2`, and confirm the detail prompt
+   - if needed, use `m` until row mode shows `head`
+   - confirm the picker
+5. If the fallback UI is active:
+   - accept or edit the column prompt
+   - choose an alignment
+   - choose `head`
+   - enter `2`
+6. Confirm that a Markdown table is inserted below that paragraph.
 
 ### Inline code path
 
 1. Move to the `` `../data/quoted.csv` `` line.
 2. Select the path text. Selecting the surrounding backticks also works.
 3. Run `:TableFromFile`.
-4. Try columns like `name,quote`.
-5. Confirm that a table is inserted below the paragraph and the original inline
+4. In enhanced mode, use `<Tab>` on `name`, then `quote`, before confirming.
+5. In fallback mode, try columns like `name,quote`.
+6. Confirm that a table is inserted below the paragraph and the original inline
    code stays unchanged.
 
 ### Fenced code block path
@@ -81,8 +113,9 @@ repository checkout.
 1. Move to the `../data/people.tsv` line inside the fenced block.
 2. Select only the path text.
 3. Run `:TableFromFile`.
-4. Choose `head`.
-5. Enter `1`.
+4. In enhanced mode, press `c` to select all columns, use `d` to set `1`, keep
+   `head` if needed with `m`, then confirm.
+5. In fallback mode, choose `head` and enter `1`.
 6. Confirm that the entire fenced block is replaced with a Markdown table.
 
 ### Heading-adjacent fenced block
@@ -90,8 +123,9 @@ repository checkout.
 1. Move to the `Heading-adjacent fenced block` section.
 2. Select the `../data/people.tsv` path inside that fenced block.
 3. Run `:TableFromFile`.
-4. Choose `head`.
-5. Enter `1`.
+4. In enhanced mode, press `c` to select all columns, use `d` to set `1`, keep
+   `head` if needed with `m`, and confirm.
+5. In fallback mode, choose `head` and enter `1`.
 6. Confirm that the fenced block is replaced and that a blank line is inserted
    between the section heading and the replacement table.
 
@@ -108,7 +142,9 @@ repository checkout.
 1. Move to the `../data/malformed_body.tsv` fenced block.
 2. Select the path.
 3. Run `:TableFromFile`.
-4. Complete the prompts on a normal path through the UI.
+4. Complete the UI on a normal path:
+   - enhanced mode: confirm the picker screen
+   - fallback mode: complete the original prompt chain
 5. Confirm that the command later fails with a row-parse error for the TSV
    body.
 
@@ -117,8 +153,11 @@ repository checkout.
 1. Return to `../data/people.csv`.
 2. Select the path.
 3. Run `:TableFromFile`.
-4. At the first prompt, enter `missing_column`.
-5. Confirm that the command fails immediately after the first prompt instead of
+4. In fallback mode, enter `missing_column` at the first prompt.
+5. In enhanced mode, this case no longer applies directly because columns are
+   selected from the picker instead of typed by name.
+6. Confirm that fallback mode still fails immediately after the first prompt
+   instead of
    continuing to alignment or row prompts.
 
 ### Nonstandard extension
@@ -126,8 +165,9 @@ repository checkout.
 1. Move to the `` `../data/people.data` `` line.
 2. Select the path.
 3. Run `:TableFromFile`.
-4. Choose `head`.
-5. Enter `1`.
+4. In enhanced mode, press `c` to select all columns, use `d` to set `1`, keep
+   `head` if needed with `m`, then confirm.
+5. In fallback mode, choose `head` and enter `1`.
 6. Confirm that the command succeeds even though the file does not end in
    `.csv` or `.tsv`.
 

@@ -11,6 +11,10 @@ This plugin is still an ongoing effort.
   Markdown table
 - Detect CSV or TSV data from file content instead of requiring a specific
   filename extension
+- Use an optional enhanced `snacks.nvim` UI for searchable column selection and
+  merged table options
+- Fall back to the original `vim.ui.input()` / `vim.ui.select()` flow when the
+  enhanced backend is unavailable
 - Insert below the containing paragraph for plain text and inline code paths
 - Replace the entire fenced code block for fenced path selections
 - Select columns by name or index, with input order controlling output order
@@ -31,6 +35,34 @@ This plugin is still an ongoing effort.
   end,
 }
 ```
+
+### Optional enhanced UI with snacks.nvim
+
+If `snacks.nvim` is installed, `sheetdown.nvim` will use the richer `v0.2.0`
+UI automatically by default.
+
+```lua
+{
+  "svm-zhang/sheetdown.nvim",
+  cmd = { "TableFromFile" },
+  ft = { "markdown" },
+  dependencies = {
+    {
+      "folke/snacks.nvim",
+      opts = {
+        input = { enabled = true },
+        picker = { enabled = true },
+      },
+    },
+  },
+  config = function()
+    require("sheetdown").setup()
+  end,
+}
+```
+
+If `snacks.nvim` is not installed, `sheetdown.nvim` keeps using the previous
+prompt flow through `vim.ui.input()` and `vim.ui.select()`.
 
 ## Usage
 
@@ -57,9 +89,39 @@ If you want a visual mapping, use the normal visual command-line form:
 Do not use a visual `<Cmd>...` mapping here. This command depends on the
 current visual selection marks.
 
-### Column prompt
+### Enhanced UI
 
-The first prompt controls both column inclusion and output order.
+When `snacks.nvim` is available, `sheetdown.nvim` opens a single picker-based
+screen that keeps search, column selection, current options, and key hints
+visible together:
+
+- searchable column selection
+- visible alignment choices
+- visible row-render choices
+- selected-column summary
+
+Columns start unchecked in the enhanced UI. The order you toggle them on
+becomes the output column order.
+
+In this enhanced UI:
+
+- the search field opens focused with a placeholder
+- type immediately to filter columns
+- `<C-j>/<Down>` moves from the search input into the list
+- `<i>` returns from the list to the search input
+- `<Tab>` toggles the current column
+- `<c>` selects all columns
+- `<u>` clears all columns
+- `<a>` cycles alignment
+- `<d>` sets either `N` or `start:end`
+- `<m>` cycles `head` / `tail` when the current row detail is numeric
+- `<CR>` confirms
+- `<Esc>` closes the UI
+
+### Fallback column prompt
+
+Without `snacks.nvim`, the first prompt controls both column inclusion and
+output order.
 
 Examples:
 
@@ -106,7 +168,7 @@ Quarterly results:
 
 ## Configuration
 
-The config surface is intentionally small in `v0.1.0`.
+The config surface is intentionally small.
 
 ```lua
 require("sheetdown").setup({
@@ -114,6 +176,9 @@ require("sheetdown").setup({
   default_rows = {
     mode = "head",
     count = 5,
+  },
+  ui = {
+    backend = "auto",
   },
 })
 ```
@@ -123,3 +188,7 @@ Supported options:
 - `default_alignment`: `"left"`, `"center"`, or `"right"`
 - `default_rows.mode`: `"head"`, `"tail"`, or `"range"`
 - `default_rows.count`: default row count for `head` and `tail`
+- `ui.backend`:
+  - `"auto"`: use `snacks.nvim` when available, otherwise fall back to `vim.ui.*`
+  - `"snacks"`: require the enhanced backend
+  - `"fallback"`: force the original `vim.ui.*` prompt flow
