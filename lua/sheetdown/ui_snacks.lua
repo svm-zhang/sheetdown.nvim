@@ -45,7 +45,7 @@ local function update_input_placeholder(input)
 		return
 	end
 
-	vim.api.nvim_buf_clear_namespace(input.win.buf, -1, 0, -1)
+	vim.api.nvim_buf_clear_namespace(input.win.buf, placeholder_namespace, 0, -1)
 
 	if current_input_text(input) ~= "" then
 		return
@@ -59,25 +59,38 @@ local function update_input_placeholder(input)
 	})
 end
 
+local function apply_input_display_tweaks(input)
+	if not input or not input.win or not input.win:valid() then
+		return
+	end
+
+	if input.win.opts and input.win.opts.wo then
+		input.win.opts.wo.statuscolumn = ""
+	end
+
+	pcall(vim.api.nvim_set_option_value, "statuscolumn", "", {
+		win = input.win.win,
+	})
+
+	update_input_placeholder(input)
+end
+
 local function patch_input_display(picker)
 	if not picker or not picker.input then
 		return
 	end
 
-	picker.input.update = function(self)
-		if not self.win or not self.win:valid() then
-			return
+	local original_update = picker.input.update
+
+	-- Wrap the existing update hook instead of replacing it so sheetdown keeps
+	-- its placeholder/statuscolumn tweaks without discarding snacks.nvim input
+	-- behavior.
+	picker.input.update = function(self, ...)
+		if original_update then
+			original_update(self, ...)
 		end
 
-		if self.win.opts and self.win.opts.wo then
-			self.win.opts.wo.statuscolumn = ""
-		end
-
-		pcall(vim.api.nvim_set_option_value, "statuscolumn", "", {
-			win = self.win.win,
-		})
-
-		update_input_placeholder(self)
+		apply_input_display_tweaks(self)
 	end
 end
 
