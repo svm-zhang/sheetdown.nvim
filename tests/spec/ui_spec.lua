@@ -52,6 +52,7 @@ end
 local function make_fake_picker(items)
 	local input_win = create_float(50, 1)
 	local preview_win = create_float(90, 12)
+	local input_update_calls = 0
 	local preview_title
 	local preview_lines
 	local focused
@@ -114,6 +115,9 @@ local function make_fake_picker(items)
 	}
 	picker.input = {
 		win = input_win,
+		update = function()
+			input_update_calls = input_update_calls + 1
+		end,
 	}
 
 	return picker, {
@@ -147,6 +151,12 @@ local function make_fake_picker(items)
 				-1,
 				{ details = true }
 			)
+		end,
+		input_buf = function()
+			return input_win.buf
+		end,
+		input_update_calls = function()
+			return input_update_calls
 		end,
 	}
 end
@@ -376,10 +386,37 @@ return {
 				captured_opts.on_show(picker)
 				helpers.eq(#picker.list.selected, 0)
 				helpers.eq(probe.focused(), "input")
+				helpers.ok(probe.input_update_calls() >= 1)
 
 				local extmarks = probe.input_extmarks()
 				helpers.ok(#extmarks > 0)
 				helpers.ok(#probe.preview_extmarks() > 0)
+
+				local foreign_namespace =
+					vim.api.nvim_create_namespace("sheetdown.ui_spec.foreign")
+				vim.api.nvim_buf_set_extmark(
+					probe.input_buf(),
+					foreign_namespace,
+					0,
+					0,
+					{
+						virt_text = {
+							{ "foreign", "WarningMsg" },
+						},
+						virt_text_pos = "overlay",
+					}
+				)
+				local update_calls_before = probe.input_update_calls()
+				picker.input:update()
+				helpers.eq(probe.input_update_calls(), update_calls_before + 1)
+				local foreign_extmarks = vim.api.nvim_buf_get_extmarks(
+					probe.input_buf(),
+					foreign_namespace,
+					0,
+					-1,
+					{ details = true }
+				)
+				helpers.eq(#foreign_extmarks, 1)
 
 				helpers.eq(probe.preview_title(), "Table Render Option")
 				local lines = probe.preview_lines()
