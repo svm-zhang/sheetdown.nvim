@@ -5,7 +5,9 @@ local modules = {
 	"tests.spec.dialect_spec",
 	"tests.spec.table_spec",
 	"tests.spec.selection_spec",
-	"tests.spec.ui_spec",
+	"tests.spec.ui_state_spec",
+	"tests.spec.ui_snacks_spec",
+	"tests.spec.ui_routing_spec",
 	"tests.spec.integration_spec",
 }
 
