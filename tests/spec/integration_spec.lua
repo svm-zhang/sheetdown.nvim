@@ -80,6 +80,12 @@ local function with_mock_notify(fn)
 	return notices
 end
 
+local function with_success_ui(select_responses, input_responses, fn, tracker)
+	with_mock_notify(function()
+		with_mock_ui(select_responses, input_responses, fn, tracker)
+	end)
+end
+
 return {
 	{
 		name = "commands.run inserts a table below a plain-text paragraph",
@@ -88,7 +94,7 @@ return {
 			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/people.csv")
 
-			with_mock_ui({ "left", "head" }, { "name,city", "2" }, function()
+			with_success_ui({ "left", "head" }, { "name,city", "2" }, function()
 				commands.run()
 			end)
 
@@ -111,7 +117,7 @@ return {
 			local line = lines[1]
 			set_visual_marks(bufnr, 1, line, "../data/people.data")
 
-			with_mock_ui({ "left", "head" }, { "name,city", "1" }, function()
+			with_success_ui({ "left", "head" }, { "name,city", "1" }, function()
 				commands.run()
 			end)
 
@@ -134,7 +140,7 @@ return {
 				helpers.find_line(lines, "../data/ambiguous.case_2.csv")
 			set_visual_marks(bufnr, row, line, "../data/ambiguous.case_2.csv")
 
-			with_mock_ui({ "left", "head" }, { "", "2" }, function()
+			with_success_ui({ "left", "head" }, { "", "2" }, function()
 				commands.run()
 			end)
 
@@ -163,7 +169,7 @@ return {
 			local row, line = helpers.find_line(lines, "../data/people.tsv")
 			set_visual_marks(bufnr, row, line, "../data/people.tsv")
 
-			with_mock_ui({ "center", "head" }, { "", "1" }, function()
+			with_success_ui({ "center", "head" }, { "", "1" }, function()
 				commands.run()
 			end)
 
@@ -183,7 +189,7 @@ return {
 			local row, line = helpers.find_line(lines, "../data/people.tsv")
 			set_visual_marks(bufnr, row, line, "../data/people.tsv")
 
-			with_mock_ui({ "center", "head" }, { "", "1" }, function()
+			with_success_ui({ "center", "head" }, { "", "1" }, function()
 				commands.run()
 			end)
 
@@ -204,7 +210,7 @@ return {
 			local row, line = helpers.find_line(lines, "../data/people.csv")
 			set_visual_marks(bufnr, row, line, "../data/people.csv")
 
-			with_mock_ui({ "left", "head" }, { "name,city", "1" }, function()
+			with_success_ui({ "left", "head" }, { "name,city", "1" }, function()
 				commands.run()
 			end)
 
@@ -232,7 +238,7 @@ return {
 			local row, line = helpers.find_line(lines, "../data/people.tsv")
 			set_visual_marks(bufnr, row, line, "../data/people.tsv")
 
-			with_mock_ui({ "center", "head" }, { "", "1" }, function()
+			with_success_ui({ "center", "head" }, { "", "1" }, function()
 				commands.run()
 			end)
 
