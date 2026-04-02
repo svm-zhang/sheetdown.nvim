@@ -95,6 +95,9 @@ function M.make_fake_picker(items)
 	picker.selected = function()
 		return picker.list.selected
 	end
+	picker.current = function()
+		return picker.list.current
+	end
 	picker.focus = function(_, win)
 		focused = win
 	end

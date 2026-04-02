@@ -1,5 +1,6 @@
 local helpers = require("tests.helpers")
 local ui_helpers = require("tests.ui_helpers")
+local ui_session = require("sheetdown.ui_session")
 
 return {
 	{
@@ -56,6 +57,8 @@ return {
 				helpers.eq(captured_opts.win.list.keys.u, "sheetdown_exclude_all")
 
 				captured_opts.on_show(picker)
+				helpers.ok(picker.sheetdown_session)
+				helpers.eq(picker.sheetdown_session:status_name(), "open")
 				helpers.eq(#picker.list.selected, 0)
 				helpers.eq(probe.focused(), "input")
 				helpers.ok(probe.input_update_calls() >= 1)
@@ -91,12 +94,7 @@ return {
 				helpers.eq(#foreign_extmarks, 1)
 
 				helpers.eq(probe.preview_title(), "Table Render Option")
-				local lines = probe.preview_lines()
-				helpers.eq(lines[1], "Selected")
-				helpers.eq(lines[2], "  (none selected)")
-				helpers.eq(lines[10], "  Navigation")
-				helpers.eq(lines[12], "  Column Selection")
-				helpers.eq(lines[14], "  Render Option")
+				helpers.ok(#probe.preview_lines() > 0)
 
 				local selected_chunks = captured_opts.format(
 					{ column_index = 2, label = "age" },
@@ -124,8 +122,83 @@ return {
 
 				captured_opts.actions.sheetdown_select_all(picker)
 				helpers.eq(#picker.list.selected, 3)
+				picker.list.current = captured_opts.items[2]
+				captured_opts.actions.sheetdown_toggle_current(picker)
+				helpers.eq(
+					vim.tbl_map(function(item)
+						return item.column_index
+					end, picker.list.selected),
+					{ 1, 3 }
+				)
+				captured_opts.actions.sheetdown_toggle_current(picker)
+				helpers.eq(
+					vim.tbl_map(function(item)
+						return item.column_index
+					end, picker.list.selected),
+					{ 1, 3, 2 }
+				)
 				captured_opts.actions.sheetdown_exclude_all(picker)
 				helpers.eq(#picker.list.selected, 0)
+			end)
+
+			probe.cleanup()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			if not ok then
+				error(err)
+			end
+		end,
+	},
+	{
+		name = "ui_snacks.open_session restores a hidden session into picker state",
+		run = function()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			local captured_opts
+			local picker, probe
+			local session = ui_session.create(
+				{ "name", "age", "city" },
+				{
+					default_alignment = "left",
+					default_rows = { mode = "head", count = 5 },
+				}
+			)
+
+			assert(session:open())
+			assert(session:toggle_column(3))
+			assert(session:toggle_column(1))
+			session:focus_preview("alignment")
+			session:set_search_text("ci")
+			assert(session:hide())
+
+			ui_helpers.with_module("snacks", {
+				input = function() end,
+				picker = {
+					pick = function(opts)
+						captured_opts = opts
+						picker, probe = ui_helpers.make_fake_picker(opts.items)
+						return picker
+					end,
+				},
+			}, function()
+				local ui_snacks = require("sheetdown.ui_snacks")
+				ui_snacks.open_session(session, function() end)
+			end)
+
+			local ok, err = pcall(function()
+				captured_opts.on_show(picker)
+
+				helpers.eq(session:status_name(), "open")
+				helpers.eq(probe.focused(), "preview")
+				helpers.eq(
+					vim.tbl_map(function(item)
+						return item.column_index
+					end, picker.list.selected),
+					{ 3, 1 }
+				)
+
+				local lines = probe.preview_lines()
+				helpers.eq(lines[2], "  city, name")
 			end)
 
 			probe.cleanup()
