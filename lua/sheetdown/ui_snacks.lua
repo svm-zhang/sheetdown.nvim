@@ -1,4 +1,4 @@
-local ui_state = require("sheetdown.ui_state")
+local ui_session = require("sheetdown.ui_session")
 
 local M = {}
 
@@ -21,14 +21,6 @@ local subheadings = {
 
 local function notify(message, level)
 	vim.notify(message, level or vim.log.levels.INFO, { title = "sheetdown" })
-end
-
-local function selected_items(picker)
-	if not picker or not picker.selected then
-		return {}
-	end
-
-	return picker:selected({ fallback = false })
 end
 
 local function current_input_text(input)
@@ -59,7 +51,7 @@ local function update_input_placeholder(input)
 	})
 end
 
-local function apply_input_display_tweaks(input)
+local function apply_input_display_tweaks(input, session)
 	if not input or not input.win or not input.win:valid() then
 		return
 	end
@@ -72,10 +64,14 @@ local function apply_input_display_tweaks(input)
 		win = input.win.win,
 	})
 
+	if session then
+		session:set_search_text(current_input_text(input))
+	end
+
 	update_input_placeholder(input)
 end
 
-local function patch_input_display(picker)
+local function patch_input_display(picker, session)
 	if not picker or not picker.input then
 		return
 	end
@@ -90,11 +86,11 @@ local function patch_input_display(picker)
 			original_update(self, ...)
 		end
 
-		apply_input_display_tweaks(self)
+		apply_input_display_tweaks(self, session)
 	end
 end
 
-local function render_preview(picker, headers, state)
+local function render_preview(picker, session)
 	if not picker or not picker.preview then
 		return
 	end
@@ -104,7 +100,7 @@ local function render_preview(picker, headers, state)
 		return
 	end
 
-	local spec = ui_state.preview_spec(headers, state, selected_items(picker), {
+	local spec = session:preview_spec({
 		width = vim.api.nvim_win_get_width(preview_win.win),
 	})
 	picker.preview:reset()
@@ -186,37 +182,58 @@ local function render_preview(picker, headers, state)
 		end
 	end
 
-	local target = spec.focus_lines[state.active_section] or 1
+	local target = spec.focus_lines[session:active_section()] or 1
 	pcall(vim.api.nvim_win_set_cursor, preview_win.win, { target, 0 })
 end
 
-local function refresh(picker, headers, state)
-	render_preview(picker, headers, state)
+local function sync_picker_selection(picker, session)
+	if not picker or not picker.list or not picker.list.set_selected then
+		return
+	end
+
+	picker.list:set_selected(session:selected_items())
+end
+
+local function current_picker_item(picker)
+	if picker and picker.current then
+		return picker:current({ resolve = false })
+	end
+
+	return picker and picker.list and picker.list.current or nil
+end
+
+local function refresh(picker, session)
+	render_preview(picker, session)
 	if picker and picker.input and picker.input.update then
 		picker.input:update()
 	end
 end
 
-local function focus_input(picker, headers, state)
-	ui_state.clear_active_section(state)
+local function focus_input(picker, session)
+	session:focus_input()
 	picker:focus("input", { show = true })
-	refresh(picker, headers, state)
+	refresh(picker, session)
 end
 
-local function focus_list(picker, headers, state)
-	ui_state.clear_active_section(state)
+local function focus_list(picker, session)
+	session:focus_list()
 	picker:focus("list", { show = true })
-	refresh(picker, headers, state)
+	refresh(picker, session)
 end
 
-local function focus_preview_section(picker, headers, state, section)
-	ui_state.set_active_section(state, section)
+local function focus_preview_section(picker, session, section)
+	session:focus_preview(section)
 	picker:focus("preview", { show = true })
-	refresh(picker, headers, state)
+	refresh(picker, session)
 end
 
 local function format_column(item, picker)
-	local selected = picker.list:is_selected(item)
+	local session = picker.sheetdown_session
+	local selected = session and session:is_selected(item) or false
+	if not selected and picker.list and picker.list.is_selected then
+		selected = picker.list:is_selected(item)
+	end
+
 	return {
 		{ selected and "[x]" or "[ ]", selected and "SnacksPickerSelected" or "SnacksPickerUnselected" },
 		{ " " },
@@ -252,34 +269,52 @@ local function build_layout()
 	}
 end
 
-local function edit_row_detail(Snacks, state, picker, headers)
+local function edit_row_detail(Snacks, session, picker)
 	Snacks.input({
-		prompt = ("%s: "):format(ui_state.row_detail_label()),
-		default = ui_state.current_row_detail(state),
+		prompt = ("%s: "):format(session:row_detail_label()),
+		default = session:current_row_detail(),
 	}, function(value)
 		if value == nil then
-			focus_preview_section(picker, headers, state, "row_detail")
+			focus_preview_section(picker, session, "row_detail")
 			return
 		end
 
-		local ok, err = ui_state.set_current_row_detail(state, value)
+		local ok, err = session:set_row_detail(value)
 		if not ok then
 			notify(err, vim.log.levels.ERROR)
 		end
 
-		focus_preview_section(picker, headers, state, "row_detail")
+		focus_preview_section(picker, session, "row_detail")
 	end)
 end
 
----Collect table options with a visible picker-based snacks.nvim workflow.
----@param headers string[]
----@param config table
+local function apply_session_focus(picker, session)
+	if session:focus_name() == "list" then
+		return focus_list(picker, session)
+	end
+
+	if session:focus_name() == "preview" then
+		return focus_preview_section(picker, session, session:active_section())
+	end
+
+	return focus_input(picker, session)
+end
+
+---Open an enhanced snacks.nvim session against the given durable session
+---object. The same session may later be reopened after an internal hide/restore
+---transition without recreating its selection or render-option state.
+---@param session table
 ---@param on_done fun(result: table|nil, err: string|nil)
-function M.prompt(headers, config, on_done)
+function M.open_session(session, on_done)
 	local Snacks = require("snacks")
-	local state = ui_state.create(headers, config)
 	local completed = false
-	local items = ui_state.column_items(headers)
+	local items = session:column_items()
+
+	local ok, err = session:activate()
+	if not ok then
+		on_done(nil, err)
+		return nil
+	end
 
 	local picker = Snacks.picker.pick({
 		source = "sheetdown_columns",
@@ -307,7 +342,7 @@ function M.prompt(headers, config, on_done)
 			},
 		},
 		preview = function(ctx)
-			render_preview(ctx.picker, headers, state)
+			render_preview(ctx.picker, session)
 		end,
 		format = format_column,
 		win = {
@@ -395,11 +430,10 @@ function M.prompt(headers, config, on_done)
 		},
 		actions = {
 			confirm = function(current_picker)
-				local result, result_error =
-					ui_state.build_result(headers, state, selected_items(current_picker))
+				local result, result_error = session:confirm()
 				if not result then
 					notify(result_error, vim.log.levels.ERROR)
-					refresh(current_picker, headers, state)
+					refresh(current_picker, session)
 					return
 				end
 
@@ -410,62 +444,76 @@ function M.prompt(headers, config, on_done)
 				end)
 			end,
 			sheetdown_cycle_alignment = function(current_picker)
-				ui_state.cycle_alignment(state)
-				focus_preview_section(current_picker, headers, state, "alignment")
+				session:cycle_alignment()
+				focus_preview_section(current_picker, session, "alignment")
 			end,
 			sheetdown_cycle_row_mode = function(current_picker)
-				local _, err = ui_state.cycle_row_mode(state)
-				if err then
-					notify(err, vim.log.levels.ERROR)
-					focus_preview_section(current_picker, headers, state, "row_detail")
+				local _, cycle_error = session:cycle_row_mode()
+				if cycle_error then
+					notify(cycle_error, vim.log.levels.ERROR)
+					focus_preview_section(current_picker, session, "row_detail")
 					return
 				end
 
-				focus_preview_section(current_picker, headers, state, "row_mode")
+				focus_preview_section(current_picker, session, "row_mode")
 			end,
 			sheetdown_edit_row_detail = function(current_picker)
-				edit_row_detail(Snacks, state, current_picker, headers)
+				edit_row_detail(Snacks, session, current_picker)
 			end,
 			sheetdown_exclude_all = function(current_picker)
-				current_picker.list:set_selected({})
-				focus_list(current_picker, headers, state)
+				session:exclude_all()
+				sync_picker_selection(current_picker, session)
+				focus_list(current_picker, session)
 			end,
 			sheetdown_focus_input = function(current_picker)
-				focus_input(current_picker, headers, state)
+				focus_input(current_picker, session)
 			end,
 			sheetdown_focus_list = function(current_picker)
-				focus_list(current_picker, headers, state)
+				focus_list(current_picker, session)
 			end,
 			sheetdown_select_all = function(current_picker)
-				current_picker.list:set_selected(items)
-				focus_list(current_picker, headers, state)
+				session:select_all()
+				sync_picker_selection(current_picker, session)
+				focus_list(current_picker, session)
 			end,
 			sheetdown_toggle_current = function(current_picker)
-				current_picker.list:select()
-				focus_list(current_picker, headers, state)
+				session:toggle_column(current_picker_item(current_picker))
+				sync_picker_selection(current_picker, session)
+				focus_list(current_picker, session)
 			end,
 		},
 		on_show = function(current_picker)
-			current_picker.list:set_selected({})
-			focus_input(current_picker, headers, state)
+			current_picker.sheetdown_session = session
+			sync_picker_selection(current_picker, session)
+			apply_session_focus(current_picker, session)
 		end,
 		on_close = function()
 			if completed then
 				return
 			end
 
+			session:cancel()
 			vim.schedule(function()
 				on_done(nil, nil)
 			end)
 		end,
-	})
+		})
 
-	patch_input_display(picker)
+	patch_input_display(picker, session)
 	if picker and picker.input then
 		picker.input:update()
 	end
 
 	return picker
+end
+
+---Collect table options with a visible picker-based snacks.nvim workflow.
+---@param headers string[]
+---@param config table
+---@param on_done fun(result: table|nil, err: string|nil)
+function M.prompt(headers, config, on_done)
+	local session = ui_session.create(headers, config)
+	return M.open_session(session, on_done)
 end
 
 return M

@@ -94,10 +94,10 @@ local function truncate_selected_summary(headers, items, max_width)
 	return table.concat(kept, ", ") .. (" ... (+%d)"):format(hidden)
 end
 
----Create the shared enhanced-UI state object.
+---Create the shared enhanced-UI option state object.
 ---
----The picker keeps track of which columns are on and in what order. This state
----object only stores table-render options.
+---Column selection and ordering now live in the session/controller layer. This
+---state object only stores render options and preview-focus metadata.
 ---@param headers string[]
 ---@param config table
 ---@return table
