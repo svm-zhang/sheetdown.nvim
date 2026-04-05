@@ -9,6 +9,9 @@ local defaults = {
 	ui = {
 		backend = "auto",
 	},
+	notifications = {
+		enabled = true,
+	},
 }
 
 local values = vim.deepcopy(defaults)

@@ -320,10 +320,12 @@ function M.preview_spec(headers, state, items, opts)
 	lines[#lines + 1] = "    Include/Exclude toggle: <Tab>   Select all: <c>   Exclude all: <u>"
 	lines[#lines + 1] = "  Render Option"
 	if state.row_input_kind == "count" then
-		lines[#lines + 1] = "    Alignment: <a>   Row mode: <m>   Rows or range: <d>"
+		lines[#lines + 1] = "    Alignment: <a>   Row mode: <m>   Rows or range: <d>   Reset: <r>"
 	else
-		lines[#lines + 1] = "    Alignment: <a>   Rows or range: <d>"
+		lines[#lines + 1] = "    Alignment: <a>   Rows or range: <d>   Reset: <r>"
 	end
+	lines[#lines + 1] = "  Session"
+	lines[#lines + 1] = "    Hide and resume: run :TableFromFile again"
 
 	return {
 		title = "Table Render Option",
