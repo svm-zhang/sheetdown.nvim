@@ -117,8 +117,10 @@ return {
 			helpers.eq(lines[14], "  Render Option")
 			helpers.eq(
 				lines[15],
-				"    Alignment: <a>   Row mode: <m>   Rows or range: <d>"
+				"    Alignment: <a>   Row mode: <m>   Rows or range: <d>   Reset: <r>"
 			)
+			helpers.eq(lines[16], "  Session")
+			helpers.eq(lines[17], "    Hide and resume: run :TableFromFile again")
 		end,
 	},
 	{
@@ -139,7 +141,12 @@ return {
 			)
 
 			helpers.eq(lines[6], "  Range: 1:5")
-			helpers.eq(lines[14], "    Alignment: <a>   Rows or range: <d>")
+			helpers.eq(
+				lines[14],
+				"    Alignment: <a>   Rows or range: <d>   Reset: <r>"
+			)
+			helpers.eq(lines[15], "  Session")
+			helpers.eq(lines[16], "    Hide and resume: run :TableFromFile again")
 		end,
 	},
 	{

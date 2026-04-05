@@ -54,6 +54,7 @@ return {
 				helpers.eq(captured_opts.win.list.keys.d, "sheetdown_edit_row_detail")
 				helpers.eq(captured_opts.win.list.keys.i, "sheetdown_focus_input")
 				helpers.eq(captured_opts.win.list.keys.m, "sheetdown_cycle_row_mode")
+				helpers.eq(captured_opts.win.list.keys.r, "sheetdown_reset_session")
 				helpers.eq(captured_opts.win.list.keys.u, "sheetdown_exclude_all")
 
 				captured_opts.on_show(picker)
@@ -139,6 +140,17 @@ return {
 				)
 				captured_opts.actions.sheetdown_exclude_all(picker)
 				helpers.eq(#picker.list.selected, 0)
+
+				captured_opts.actions.sheetdown_select_all(picker)
+				picker.input.win.buf = probe.input_buf()
+				vim.api.nvim_buf_set_lines(probe.input_buf(), 0, -1, false, { "ci" })
+				picker.input:update()
+				captured_opts.actions.sheetdown_reset_session(picker)
+				helpers.eq(#picker.list.selected, 0)
+				helpers.eq(probe.focused(), "input")
+				helpers.eq(vim.api.nvim_buf_get_lines(probe.input_buf(), 0, -1, false), {
+					"",
+				})
 			end)
 
 			probe.cleanup()
@@ -190,15 +202,85 @@ return {
 
 				helpers.eq(session:status_name(), "open")
 				helpers.eq(probe.focused(), "preview")
+				helpers.ok(probe.refresh_calls() >= 1)
 				helpers.eq(
 					vim.tbl_map(function(item)
 						return item.column_index
 					end, picker.list.selected),
 					{ 3, 1 }
 				)
+				helpers.eq(probe.applied_query(), "ci")
+				helpers.eq(probe.visible_items(), { "city" })
 
 				local lines = probe.preview_lines()
 				helpers.eq(lines[2], "  city, name")
+
+				captured_opts.actions.sheetdown_reset_session(picker)
+				helpers.ok(probe.refresh_calls() >= 2)
+				helpers.eq(probe.applied_query(), "")
+				helpers.eq(probe.visible_items(), { "name", "age", "city" })
+				helpers.eq(
+					vim.tbl_map(function(item)
+						return item.column_index
+					end, picker.list.selected),
+					{}
+				)
+			end)
+
+			probe.cleanup()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			if not ok then
+				error(err)
+			end
+		end,
+	},
+	{
+		name = "ui_snacks.hide_session clears adapter active state before picker close completes",
+		run = function()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			local captured_opts
+			local picker, probe
+			local done_calls = 0
+			local session = ui_session.create(
+				{ "name", "age", "city" },
+				{
+					default_alignment = "left",
+					default_rows = { mode = "head", count = 5 },
+				}
+			)
+
+			ui_helpers.with_module("snacks", {
+				input = function() end,
+				picker = {
+					pick = function(opts)
+						captured_opts = opts
+						picker, probe = ui_helpers.make_fake_picker(opts.items)
+						return picker
+					end,
+				},
+			}, function()
+				local ui_snacks = require("sheetdown.ui_snacks")
+				ui_snacks.open_session(session, function()
+					done_calls = done_calls + 1
+				end)
+			end)
+
+			local ok, err = pcall(function()
+				local ui_snacks = require("sheetdown.ui_snacks")
+
+				captured_opts.on_show(picker)
+				helpers.eq(ui_snacks.active_session(), session)
+				helpers.eq(session:status_name(), "open")
+
+				assert(ui_snacks.hide_session(session))
+				helpers.eq(session:status_name(), "hidden")
+				helpers.eq(ui_snacks.active_session(), nil)
+
+				captured_opts.on_close()
+				helpers.eq(done_calls, 0)
+				helpers.eq(ui_snacks.active_session(), nil)
 			end)
 
 			probe.cleanup()

@@ -9,6 +9,7 @@ local modules = {
 	"tests.spec.ui_session_spec",
 	"tests.spec.ui_snacks_spec",
 	"tests.spec.ui_routing_spec",
+	"tests.spec.commands_lifecycle_spec",
 	"tests.spec.integration_spec",
 }
 
