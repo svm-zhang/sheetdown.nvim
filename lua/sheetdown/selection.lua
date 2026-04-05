@@ -1,4 +1,5 @@
 local M = {}
+local anchor_namespace = vim.api.nvim_create_namespace("sheetdown.selection.anchor")
 
 -- Visual marks can be placed one column past the line content. Clamp them so
 -- later text extraction works against real buffer positions.
@@ -47,6 +48,36 @@ local function normalize_range(bufnr, raw_start, raw_finish)
 		start_col = clamp_col(bufnr, start_mark[1], start_mark[2]),
 		end_row = finish_mark[1],
 		end_col = clamp_col(bufnr, finish_mark[1], finish_mark[2]),
+	}
+end
+
+local function extmark_range(bufnr, extmark_id)
+	if not vim.api.nvim_buf_is_valid(bufnr) then
+		return nil, "Original selection buffer is no longer available."
+	end
+
+	local extmark = vim.api.nvim_buf_get_extmark_by_id(
+		bufnr,
+		anchor_namespace,
+		extmark_id,
+		{ details = true }
+	)
+	if not extmark or #extmark == 0 then
+		return nil, "Original selection is no longer available."
+	end
+
+	local details = extmark[3] or {}
+	if details.end_row == nil or details.end_col == nil then
+		return nil, "Original selection is no longer available."
+	end
+
+	local end_col = math.max(extmark[2], details.end_col - 1)
+
+	return {
+		start_row = extmark[1] + 1,
+		start_col = extmark[2],
+		end_row = details.end_row + 1,
+		end_col = end_col,
 	}
 end
 
@@ -250,8 +281,103 @@ function M.get(bufnr)
 	return {
 		bufnr = bufnr,
 		candidate_path = candidate_path,
+		range = range,
 		target = build_target(all_lines, range),
 	}
+end
+
+---Check whether the current buffer still has a usable visual selection.
+---@param bufnr integer
+---@return boolean
+function M.has_visual_marks(bufnr)
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
+
+	local raw_start = vim.api.nvim_buf_get_mark(bufnr, "<")
+	local raw_finish = vim.api.nvim_buf_get_mark(bufnr, ">")
+	return raw_start[1] ~= 0 and raw_finish[1] ~= 0
+end
+
+---Clear persisted visual marks so a later normal-mode command run does not
+---mistake stale marks for a fresh selection.
+---@param bufnr integer
+function M.clear_visual_marks(bufnr)
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
+	vim.api.nvim_buf_set_mark(bufnr, "<", 0, 0, {})
+	vim.api.nvim_buf_set_mark(bufnr, ">", 0, 0, {})
+end
+
+---Create a durable anchor for the original selection so table insertion can be
+---resolved again after the buffer changes while the enhanced UI session is
+---hidden.
+---@param selection_info table
+---@return table|nil, string|nil
+function M.create_anchor(selection_info)
+	local range = selection_info.range
+	if not range then
+		return nil, "Missing selection range."
+	end
+
+	local extmark_id = vim.api.nvim_buf_set_extmark(
+		selection_info.bufnr,
+		anchor_namespace,
+		range.start_row - 1,
+		range.start_col,
+		{
+			end_row = range.end_row - 1,
+			end_col = range.end_col + 1,
+			right_gravity = false,
+			end_right_gravity = true,
+			strict = false,
+		}
+	)
+
+	return {
+		bufnr = selection_info.bufnr,
+		extmark_id = extmark_id,
+	}
+end
+
+---Resolve the current anchored range.
+---@param anchor table
+---@return table|nil, string|nil
+function M.resolve_range(anchor)
+	return extmark_range(anchor.bufnr, anchor.extmark_id)
+end
+
+---Resolve the current apply target for a hidden enhanced-UI session.
+---@param anchor table
+---@return table|nil, string|nil
+function M.resolve_target(anchor)
+	local range, range_error = M.resolve_range(anchor)
+	if not range then
+		return nil, range_error
+	end
+
+	local all_lines = vim.api.nvim_buf_get_lines(anchor.bufnr, 0, -1, false)
+	return {
+		bufnr = anchor.bufnr,
+		range = range,
+		target = build_target(all_lines, range),
+	}
+end
+
+---Dispose a previously created anchor.
+---@param anchor table|nil
+function M.dispose_anchor(anchor)
+	if not anchor then
+		return
+	end
+
+	if not vim.api.nvim_buf_is_valid(anchor.bufnr) then
+		return
+	end
+
+	pcall(
+		vim.api.nvim_buf_del_extmark,
+		anchor.bufnr,
+		anchor_namespace,
+		anchor.extmark_id
+	)
 end
 
 ---Insert or replace the generated table based on the target from `get()`.

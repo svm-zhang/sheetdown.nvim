@@ -59,13 +59,15 @@ end
 ---@return table
 function M.create(headers, config, opts)
 	local items = ui_state.column_items(headers)
+	local config_snapshot = vim.deepcopy(config or {})
 
 	return setmetatable({
 		bufnr = current_bufnr(opts),
 		headers = vim.deepcopy(headers),
+		config = config_snapshot,
 		items = items,
 		items_by_index = build_item_index(items),
-		options = ui_state.create(headers, config),
+		options = ui_state.create(headers, config_snapshot),
 		selected_order = {},
 		selected_lookup = {},
 		search_text = "",
@@ -212,6 +214,18 @@ end
 
 function Session:build_result()
 	return ui_state.build_result(self.headers, self.options, self:selected_items())
+end
+
+function Session:reset()
+	if self.status ~= "new" and self.status ~= "open" and self.status ~= "hidden" then
+		return nil, lifecycle_error(self.status, "reset")
+	end
+
+	self.options = ui_state.create(self.headers, self.config)
+	self:replace_selection({})
+	self:set_search_text("")
+	self:focus_input()
+	return true
 end
 
 function Session:open()

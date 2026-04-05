@@ -1,4 +1,5 @@
 local ui_session = require("sheetdown.ui_session")
+local notify = require("sheetdown.notify")
 
 local M = {}
 
@@ -17,11 +18,11 @@ local subheadings = {
 	["  Navigation"] = true,
 	["  Column Selection"] = true,
 	["  Render Option"] = true,
+	["  Session"] = true,
 }
 
-local function notify(message, level)
-	vim.notify(message, level or vim.log.levels.INFO, { title = "sheetdown" })
-end
+local picker_by_session = {}
+local active_session
 
 local function current_input_text(input)
 	if not input or not input.win or not input.win.buf then
@@ -49,6 +50,15 @@ local function update_input_placeholder(input)
 		},
 		virt_text_pos = "overlay",
 	})
+end
+
+local function set_input_text(input, value)
+	if not input or not input.win or not input.win.buf then
+		return
+	end
+
+	vim.api.nvim_buf_set_lines(input.win.buf, 0, -1, false, { value or "" })
+	pcall(vim.api.nvim_win_set_cursor, input.win.win, { 1, #(value or "") })
 end
 
 local function apply_input_display_tweaks(input, session)
@@ -88,6 +98,19 @@ local function patch_input_display(picker, session)
 
 		apply_input_display_tweaks(self, session)
 	end
+end
+
+local function remember_picker(session, picker)
+	active_session = session
+	picker_by_session[session] = picker
+end
+
+local function forget_picker(session)
+	if active_session == session then
+		active_session = nil
+	end
+
+	picker_by_session[session] = nil
 end
 
 local function render_preview(picker, session)
@@ -209,6 +232,34 @@ local function refresh(picker, session)
 	end
 end
 
+local function sync_input_from_session(picker, session)
+	if not picker or not picker.input then
+		return
+	end
+
+	local text = session:search_value()
+
+	if picker.input.filter then
+		picker.input.filter.pattern = text
+		picker.input.filter.search = text
+	end
+
+	if picker.input.set then
+		picker.input:set(text, text)
+	else
+		set_input_text(picker.input, text)
+		if picker.input.update then
+			picker.input:update()
+		end
+	end
+
+	if picker.refresh then
+		picker:refresh()
+	elseif picker.find then
+		picker:find({ refresh = true })
+	end
+end
+
 local function focus_input(picker, session)
 	session:focus_input()
 	picker:focus("input", { show = true })
@@ -281,7 +332,7 @@ local function edit_row_detail(Snacks, session, picker)
 
 		local ok, err = session:set_row_detail(value)
 		if not ok then
-			notify(err, vim.log.levels.ERROR)
+			notify.error(err)
 		end
 
 		focus_preview_section(picker, session, "row_detail")
@@ -403,6 +454,7 @@ function M.open_session(session, on_done)
 					d = "sheetdown_edit_row_detail",
 					i = "sheetdown_focus_input",
 					m = "sheetdown_cycle_row_mode",
+					r = "sheetdown_reset_session",
 					u = "sheetdown_exclude_all",
 				},
 			},
@@ -424,6 +476,7 @@ function M.open_session(session, on_done)
 					d = "sheetdown_edit_row_detail",
 					i = "sheetdown_focus_input",
 					m = "sheetdown_cycle_row_mode",
+					r = "sheetdown_reset_session",
 					u = "sheetdown_exclude_all",
 				},
 			},
@@ -432,7 +485,7 @@ function M.open_session(session, on_done)
 			confirm = function(current_picker)
 				local result, result_error = session:confirm()
 				if not result then
-					notify(result_error, vim.log.levels.ERROR)
+					notify.error(result_error)
 					refresh(current_picker, session)
 					return
 				end
@@ -450,7 +503,7 @@ function M.open_session(session, on_done)
 			sheetdown_cycle_row_mode = function(current_picker)
 				local _, cycle_error = session:cycle_row_mode()
 				if cycle_error then
-					notify(cycle_error, vim.log.levels.ERROR)
+					notify.error(cycle_error)
 					focus_preview_section(current_picker, session, "row_detail")
 					return
 				end
@@ -476,6 +529,18 @@ function M.open_session(session, on_done)
 				sync_picker_selection(current_picker, session)
 				focus_list(current_picker, session)
 			end,
+			sheetdown_reset_session = function(current_picker)
+				local ok, reset_error = session:reset()
+				if not ok then
+					notify.error(reset_error)
+					refresh(current_picker, session)
+					return
+				end
+
+				sync_input_from_session(current_picker, session)
+				sync_picker_selection(current_picker, session)
+				focus_input(current_picker, session)
+			end,
 			sheetdown_toggle_current = function(current_picker)
 				session:toggle_column(current_picker_item(current_picker))
 				sync_picker_selection(current_picker, session)
@@ -484,11 +549,19 @@ function M.open_session(session, on_done)
 		},
 		on_show = function(current_picker)
 			current_picker.sheetdown_session = session
+			remember_picker(session, current_picker)
+			sync_input_from_session(current_picker, session)
 			sync_picker_selection(current_picker, session)
 			apply_session_focus(current_picker, session)
 		end,
 		on_close = function()
+			forget_picker(session)
+
 			if completed then
+				return
+			end
+
+			if session:status_name() == "hidden" then
 				return
 			end
 
@@ -501,7 +574,7 @@ function M.open_session(session, on_done)
 
 	patch_input_display(picker, session)
 	if picker and picker.input then
-		picker.input:update()
+		sync_input_from_session(picker, session)
 	end
 
 	return picker
@@ -514,6 +587,34 @@ end
 function M.prompt(headers, config, on_done)
 	local session = ui_session.create(headers, config)
 	return M.open_session(session, on_done)
+end
+
+---Return the currently open enhanced-UI session.
+---@return table|nil
+function M.active_session()
+	return active_session
+end
+
+---Hide the currently open picker for the given enhanced-UI session.
+---@param session table
+---@return boolean|nil, string|nil
+function M.hide_session(session)
+	local picker = picker_by_session[session]
+	if not picker then
+		return nil, "No active sheetdown enhanced UI session for this buffer."
+	end
+
+	local ok, err = session:hide()
+	if not ok then
+		return nil, err
+	end
+
+	-- Clear adapter-owned active state before closing so rapid repeated
+	-- :TableFromFile calls do not observe a hidden session as still active
+	-- while the picker is finishing its close callback.
+	forget_picker(session)
+	picker:close()
+	return true
 end
 
 return M

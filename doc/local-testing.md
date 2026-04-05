@@ -49,7 +49,7 @@ below.
 ### Optional enhanced UI
 
 If your Neovim config already installs `snacks.nvim` with its `picker` and
-`input` modules enabled, `sheetdown.nvim` will use the richer `v0.2.0` UI.
+`input` modules enabled, `sheetdown.nvim` will use the richer enhanced UI.
 
 If not, the plugin falls back to the previous `vim.ui.*` prompt flow.
 
@@ -65,8 +65,15 @@ into the list, use `<Down>` as a secondary choice, and use `i` to return to
 search.
 
 Columns start unchecked in enhanced mode. The order you toggle them on becomes
-the output column order. `c` selects all columns in source order, and `u`
-clears the full selection.
+the output column order. `c` selects all columns in source order, `u` clears
+the full selection, and `r` resets the enhanced UI back to configured defaults.
+
+With `backend="auto"` (enabling `snacks.nvim`), repeated `:TableFromFile`
+is lifecycle-aware:
+
+- while the UI is open, running `:TableFromFile` again hides it
+- from normal mode, running `:TableFromFile` again restores the hidden session
+- `<Esc>` closes and discards the session instead of hiding it
 
 ## Test cases
 
@@ -97,6 +104,20 @@ repository checkout.
    - choose `head`
    - enter `2`
 6. Confirm that a Markdown table is inserted below that paragraph.
+
+### Enhanced UI minimize and resume
+
+1. Return to `../data/people.csv`.
+2. Select the path and run `:TableFromFile`.
+3. In enhanced mode only, toggle a couple of columns and change one option.
+4. Run `:TableFromFile` again while the picker is still open.
+5. Confirm that the picker hides without inserting anything.
+6. Return to normal mode in the Markdown buffer and run `:TableFromFile` again.
+7. Confirm that the same session reopens with the same selected columns and
+   render options.
+8. Press `<Esc>`, then run `:TableFromFile` again from normal mode.
+9. Confirm that the old session does not resume after `<Esc>` and that a fresh
+   visual selection is required.
 
 ### Inline code path
 

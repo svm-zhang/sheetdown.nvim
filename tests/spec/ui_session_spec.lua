@@ -82,6 +82,28 @@ return {
 		end,
 	},
 	{
+		name = "ui_session reset restores default render state and clears selection state",
+		run = function()
+			local session = new_session()
+
+			assert(session:open())
+			assert(session:toggle_column(3))
+			session:set_search_text("ci")
+			session:focus_preview("alignment")
+			assert(session:cycle_alignment())
+			assert(session:set_row_detail("2:4"))
+
+			assert(session:reset())
+
+			helpers.eq(session:selected_indices(), {})
+			helpers.eq(session:search_value(), "")
+			helpers.eq(session:focus_name(), "input")
+			helpers.eq(session:active_section(), nil)
+			helpers.eq(session:current_row_detail(), "5")
+			helpers.eq(session:build_result(), nil)
+		end,
+	},
+	{
 		name = "ui_session rejects invalid lifecycle transitions",
 		run = function()
 			local session = new_session()

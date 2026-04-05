@@ -35,6 +35,7 @@ return {
 			local info = assert(selection.get(bufnr))
 
 			helpers.eq(info.candidate_path, "../data/quoted.csv")
+			helpers.eq(info.range.start_row, 1)
 			helpers.eq(info.target, {
 				kind = "insert_after_row",
 				row = 1,
@@ -62,6 +63,44 @@ return {
 				start_row = 1,
 				end_row = 3,
 			})
+		end,
+	},
+	{
+		name = "selection anchor resolves a moved insert target after buffer edits",
+		run = function()
+			local line = "Path: ../data/people.csv"
+			local bufnr = create_buffer({
+				line,
+				"",
+				"Next paragraph.",
+			})
+			set_single_line_marks(bufnr, 1, line, "../data/people.csv")
+
+			local info = assert(selection.get(bufnr))
+			local anchor = assert(selection.create_anchor(info))
+			selection.clear_visual_marks(bufnr)
+
+			vim.api.nvim_buf_set_lines(bufnr, 0, 0, false, { "# Intro", "" })
+
+			local resolved = assert(selection.resolve_target(anchor))
+			helpers.eq(resolved.target, {
+				kind = "insert_after_row",
+				row = 3,
+			})
+
+			selection.dispose_anchor(anchor)
+		end,
+	},
+	{
+		name = "selection.clear_visual_marks removes stale visual selection state",
+		run = function()
+			local line = "Path: ../data/people.csv"
+			local bufnr = create_buffer({ line })
+			set_single_line_marks(bufnr, 1, line, "../data/people.csv")
+
+			helpers.ok(selection.has_visual_marks(bufnr))
+			selection.clear_visual_marks(bufnr)
+			helpers.eq(selection.has_visual_marks(bufnr), false)
 		end,
 	},
 	{

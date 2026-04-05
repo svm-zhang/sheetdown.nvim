@@ -8,18 +8,19 @@ This plugin is still an ongoing effort.
 ## Features
 
 - Turn a visually selected local file containing CSV or TSV data into a
-  Markdown table
+  Markdown table.
 - Detect CSV or TSV data from file content instead of requiring a specific
-  filename extension
+  filename extension.
 - Use an optional enhanced `snacks.nvim` UI for searchable column selection and
-  merged table options
+  merged table options.
+- Lifecycle-aware minimize and resume for the UI session.
 - Fall back to the original `vim.ui.input()` / `vim.ui.select()` flow when the
-  enhanced backend is unavailable
-- Insert below the containing paragraph for plain text and inline code paths
-- Replace the entire fenced code block for fenced path selections
-- Select columns by name or index, with input order controlling output order
-- Support `head N`, `tail N`, and `start:end` row modes
-- Support left, center, and right alignment
+  enhanced backend is unavailable.
+- Insert below the containing paragraph for plain text and inline code paths.
+- Replace the entire fenced code block for fenced path selections.
+- Select columns by name or index, with input order controlling output order.
+- Support `head N`, `tail N`, and `start:end` row modes.
+- Support left, center, and right alignment.
 
 ## Installation
 
@@ -38,8 +39,8 @@ This plugin is still an ongoing effort.
 
 ### Optional enhanced UI with snacks.nvim
 
-If `snacks.nvim` is installed, `sheetdown.nvim` will use the richer `v0.2.0`
-UI automatically by default.
+If `snacks.nvim` is installed, `sheetdown.nvim` will use the richer enhanced UI
+automatically by default.
 
 ```lua
 {
@@ -105,18 +106,24 @@ becomes the output column order.
 
 In this enhanced UI:
 
-- the search field opens focused with a placeholder
-- type immediately to filter columns
-- `<C-j>/<Down>` moves from the search input into the list
-- `<i>` returns from the list to the search input
-- `<Tab>` toggles the current column
-- `<c>` selects all columns
-- `<u>` clears all columns
-- `<a>` cycles alignment
-- `<d>` sets either `N` or `start:end`
-- `<m>` cycles `head` / `tail` when the current row detail is numeric
-- `<CR>` confirms
-- `<Esc>` closes the UI
+- the search field opens focused with a placeholder.
+- type immediately to filter columns.
+- repeated `:TableFromFile` hides the current enhanced UI session.
+- running `:TableFromFile` again restores the hidden session for the same path.
+- `<C-j>/<Down>` moves from the search input into the list.
+- `<i>` returns from the list to the search input.
+- `<Tab>` toggles the current column.
+- `<c>` selects all columns.
+- `<u>` clears all columns.
+- `<a>` cycles alignment.
+- `<d>` sets either `N` or `start:end`.
+- `<m>` cycles `head` / `tail` when the current row detail is numeric.
+- `<r>` resets the enhanced UI back to configured defaults.
+- `<CR>` confirms.
+- `<Esc>` closes the UI and discards the current session.
+
+Minimize-and-resume only applies to the `snacks.nvim` backend. The fallback
+`vim.ui.*` flow keeps the earlier one-shot prompt behavior.
 
 ### Fallback column prompt
 
@@ -180,6 +187,9 @@ require("sheetdown").setup({
   ui = {
     backend = "auto",
   },
+  notifications = {
+    enabled = true,
+  },
 })
 ```
 
@@ -192,3 +202,6 @@ Supported options:
   - `"auto"`: use `snacks.nvim` when available, otherwise fall back to `vim.ui.*`
   - `"snacks"`: require the enhanced backend
   - `"fallback"`: force the original `vim.ui.*` prompt flow
+- `notifications.enabled`:
+  - `true`: show informational notices such as hide/resume messages
+  - `false`: suppress informational notices while still showing errors

@@ -55,11 +55,31 @@ function M.make_fake_picker(items)
 	local preview_title
 	local preview_lines
 	local focused
+	local all_items = vim.deepcopy(items)
+	local visible_items = vim.deepcopy(items)
+	local applied_query = ""
+	local refresh_calls = 0
+
+	local function apply_query(query)
+		applied_query = query or ""
+		local lowered = applied_query:lower()
+
+		if lowered == "" then
+			visible_items = vim.deepcopy(all_items)
+		else
+			visible_items = {}
+			for _, item in ipairs(all_items) do
+				if item.label:lower():find(lowered, 1, true) then
+					visible_items[#visible_items + 1] = item
+				end
+			end
+		end
+	end
 
 	local picker = {}
 	picker.list = {
 		selected = {},
-		current = items[1],
+		current = all_items[1],
 		is_selected = function(self, item)
 			for _, selected in ipairs(self.selected) do
 				if selected.column_index == item.column_index then
@@ -98,6 +118,14 @@ function M.make_fake_picker(items)
 	picker.current = function()
 		return picker.list.current
 	end
+	picker.find = function()
+		apply_query(picker.input.filter.pattern)
+	end
+	picker.refresh = function()
+		refresh_calls = refresh_calls + 1
+		picker.list.selected = {}
+		apply_query(picker.input.filter.pattern)
+	end
 	picker.focus = function(_, win)
 		focused = win
 	end
@@ -117,8 +145,24 @@ function M.make_fake_picker(items)
 	}
 	picker.input = {
 		win = input_win,
+		filter = {
+			pattern = "",
+			search = "",
+		},
 		update = function()
 			input_update_calls = input_update_calls + 1
+		end,
+		set = function(self, pattern, search)
+			self.filter.pattern = pattern or self.filter.pattern
+			self.filter.search = search or self.filter.search
+			vim.api.nvim_buf_set_lines(
+				input_win.buf,
+				0,
+				-1,
+				false,
+				{ self.filter.pattern }
+			)
+			self:update()
 		end,
 	}
 
@@ -159,6 +203,17 @@ function M.make_fake_picker(items)
 		end,
 		input_update_calls = function()
 			return input_update_calls
+		end,
+		visible_items = function()
+			return vim.tbl_map(function(item)
+				return item.label
+			end, visible_items)
+		end,
+		applied_query = function()
+			return applied_query
+		end,
+		refresh_calls = function()
+			return refresh_calls
 		end,
 	}
 end
