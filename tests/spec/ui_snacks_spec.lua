@@ -62,6 +62,7 @@ return {
 				helpers.eq(picker.sheetdown_session:status_name(), "open")
 				helpers.eq(#picker.list.selected, 0)
 				helpers.eq(probe.focused(), "input")
+				helpers.eq(probe.refresh_calls(), 1)
 				helpers.ok(probe.input_update_calls() >= 1)
 
 				local extmarks = probe.input_extmarks()
@@ -202,7 +203,7 @@ return {
 
 				helpers.eq(session:status_name(), "open")
 				helpers.eq(probe.focused(), "preview")
-				helpers.ok(probe.refresh_calls() >= 1)
+				helpers.eq(probe.refresh_calls(), 1)
 				helpers.eq(
 					vim.tbl_map(function(item)
 						return item.column_index
@@ -228,6 +229,75 @@ return {
 			end)
 
 			probe.cleanup()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			if not ok then
+				error(err)
+			end
+		end,
+	},
+	{
+		name = "ui_snacks.open_session restores saved query only once per reopen",
+		run = function()
+			ui_helpers.unload("sheetdown.ui_snacks")
+
+			local session = ui_session.create(
+				{ "alpha", "single", "sink", "signal", "since" },
+				{
+					default_alignment = "left",
+					default_rows = { mode = "head", count = 5 },
+				}
+			)
+			local ui_snacks
+
+			local function open_once()
+				local captured_opts
+				local picker, probe
+
+				ui_helpers.with_module("snacks", {
+					input = function() end,
+					picker = {
+						pick = function(opts)
+							captured_opts = opts
+							picker, probe = ui_helpers.make_fake_picker(opts.items)
+							return picker
+						end,
+					},
+				}, function()
+					ui_snacks = require("sheetdown.ui_snacks")
+					ui_snacks.open_session(session, function() end)
+				end)
+
+				captured_opts.on_show(picker)
+				return picker, probe
+			end
+
+			assert(session:open())
+			session:set_search_text("sin")
+			assert(session:hide())
+
+			local ok, err = pcall(function()
+				local first_probe
+				_, first_probe = open_once()
+				helpers.eq(session:status_name(), "open")
+				helpers.eq(first_probe.refresh_calls(), 1)
+				helpers.eq(first_probe.applied_query(), "sin")
+				helpers.eq(first_probe.visible_items(), { "single", "sink", "since" })
+
+				assert(ui_snacks.hide_session(session))
+				helpers.eq(session:status_name(), "hidden")
+
+				local second_probe
+				_, second_probe = open_once()
+				helpers.eq(session:status_name(), "open")
+				helpers.eq(second_probe.refresh_calls(), 1)
+				helpers.eq(second_probe.applied_query(), "sin")
+				helpers.eq(second_probe.visible_items(), { "single", "sink", "since" })
+
+				first_probe.cleanup()
+				second_probe.cleanup()
+			end)
+
 			ui_helpers.unload("sheetdown.ui_snacks")
 
 			if not ok then

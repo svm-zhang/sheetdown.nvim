@@ -11,11 +11,11 @@ This plugin is still an ongoing effort.
   Markdown table.
 - Detect CSV or TSV data from file content instead of requiring a specific
   filename extension.
-- Use an optional enhanced `snacks.nvim` UI for searchable column selection and
+- Use an optional `snacks.nvim`-backed UI for searchable column selection and
   merged table options.
 - Lifecycle-aware minimize and resume for the UI session.
 - Fall back to the original `vim.ui.input()` / `vim.ui.select()` flow when the
-  enhanced backend is unavailable.
+  `snacks.nvim` backend is unavailable.
 - Insert below the containing paragraph for plain text and inline code paths.
 - Replace the entire fenced code block for fenced path selections.
 - Select columns by name or index, with input order controlling output order.
@@ -37,10 +37,10 @@ This plugin is still an ongoing effort.
 }
 ```
 
-### Optional enhanced UI with snacks.nvim
+### Optional snacks.nvim-backed UI
 
-If `snacks.nvim` is installed, `sheetdown.nvim` will use the richer enhanced UI
-automatically by default.
+If `snacks.nvim` is installed, `sheetdown.nvim` will use the richer
+`snacks.nvim`-backed UI automatically by default.
 
 ```lua
 {
@@ -90,7 +90,7 @@ If you want a visual mapping, use the normal visual command-line form:
 Do not use a visual `<Cmd>...` mapping here. This command depends on the
 current visual selection marks.
 
-### Enhanced UI
+### snacks.nvim-backed UI
 
 When `snacks.nvim` is available, `sheetdown.nvim` opens a single picker-based
 screen that keeps search, column selection, current options, and key hints
@@ -101,14 +101,14 @@ visible together:
 - visible row-render choices
 - selected-column summary
 
-Columns start unchecked in the enhanced UI. The order you toggle them on
+Columns start unchecked in the `snacks.nvim`-backed UI. The order you toggle them on
 becomes the output column order.
 
-In this enhanced UI:
+In this `snacks.nvim`-backed UI:
 
 - the search field opens focused with a placeholder.
 - type immediately to filter columns.
-- repeated `:TableFromFile` hides the current enhanced UI session.
+- repeated `:TableFromFile` hides the current session.
 - running `:TableFromFile` again restores the hidden session for the same path.
 - `<C-j>/<Down>` moves from the search input into the list.
 - `<i>` returns from the list to the search input.
@@ -118,7 +118,7 @@ In this enhanced UI:
 - `<a>` cycles alignment.
 - `<d>` sets either `N` or `start:end`.
 - `<m>` cycles `head` / `tail` when the current row detail is numeric.
-- `<r>` resets the enhanced UI back to configured defaults.
+- `<r>` resets the picker state back to configured defaults.
 - `<CR>` confirms.
 - `<Esc>` closes the UI and discards the current session.
 
@@ -200,7 +200,7 @@ Supported options:
 - `default_rows.count`: default row count for `head` and `tail`
 - `ui.backend`:
   - `"auto"`: use `snacks.nvim` when available, otherwise fall back to `vim.ui.*`
-  - `"snacks"`: require the enhanced backend
+  - `"snacks"`: require the `snacks.nvim` backend
   - `"fallback"`: force the original `vim.ui.*` prompt flow
 - `notifications.enabled`:
   - `true`: show informational notices such as hide/resume messages
