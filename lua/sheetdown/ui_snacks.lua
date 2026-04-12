@@ -61,10 +61,12 @@ local function set_input_text(input, value)
 	pcall(vim.api.nvim_win_set_cursor, input.win.win, { 1, #(value or "") })
 end
 
-local function apply_input_display_tweaks(input, session)
+local function apply_input_display_tweaks(input, session, opts)
 	if not input or not input.win or not input.win:valid() then
 		return
 	end
+
+	opts = opts or {}
 
 	if input.win.opts and input.win.opts.wo then
 		input.win.opts.wo.statuscolumn = ""
@@ -74,7 +76,7 @@ local function apply_input_display_tweaks(input, session)
 		win = input.win.win,
 	})
 
-	if session then
+	if session and opts.update_search ~= false then
 		session:set_search_text(current_input_text(input))
 	end
 
@@ -574,7 +576,13 @@ function M.open_session(session, on_done)
 
 	patch_input_display(picker, session)
 	if picker and picker.input then
-		sync_input_from_session(picker, session)
+		-- snacks.nvim runs `on_show` during picker startup, before this module
+		-- can wrap `input.update`. Re-apply only the local display tweaks here
+		-- so placeholder/statuscolumn behavior is consistent on first show
+		-- without re-running restore-time query/filter synchronization.
+		apply_input_display_tweaks(picker.input, session, {
+			update_search = false,
+		})
 	end
 
 	return picker
